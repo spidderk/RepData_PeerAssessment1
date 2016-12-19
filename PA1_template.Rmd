@@ -5,18 +5,102 @@ output:
     keep_md: true
 ---
 
+# Reproducible Research: Peer Assessment 1
+
+
 
 ## Loading and preprocessing the data
+Load and preprocess the data as follows.
+
+1. Load any required libraries. 
+2. Assume the data exists in the current working directory as "activity.zip". Unzip the data file if needed.
+3. Load the resulting .csv file into R. Note that the missing data is coded as NA, so set na.strings = "NA", and set strinsAsFactors = FALSE to read in dates as strings instead of factors. 
+4. Convert the date column to dates using R package lubridate.
+```{r}
+   library(lubridate)
+   library(dplyr)
+   library(ggplot2)
+
+    # unzip the file if needed
+    if (!file.exists("./foo.txt")) {
+        unzip("./activity.zip", exdir="./")
+    }
+    # list directory contents -- extracted file is "activity.csv"
+    dir()
+    # load the .csv into R and convert date coulmn to dates
+    act <- read.csv("./activity.csv", stringsAsFactors = FALSE)
+    act$date <- ymd(act$date)
+    # call str() to check the format of the data frame
+    str(act)
+```
 
 
 
 ## What is mean total number of steps taken per day?
+For the initial analysis, ignore missing values. 
 
+Use dplyr group_by() to group the data by day and summarize() to get the daily step totals.
+```{r}
+    act_by_date <- group_by(act, date)
+    daily_step_totals <- summarize(act_by_date, "Total.Steps" = sum(steps, na.rm = TRUE))
+    
+    # check the min and max to help determine number of bins
+    min(daily_step_totals$Total.Steps)
+    max(daily_step_totals$Total.Steps)
+    
+```
 
+Calculate the mean and median daily steps.
+```{r}
+    ds_median <- median(daily_step_totals$Total.Steps, na.rm = TRUE)
+    ds_mean <- round(mean(daily_step_totals$Total.Steps, na.rm = TRUE),2)
+```
+
+Use ggplot2 to plot a histogram of daily step totals. 
+```{r}
+    d <- ggplot(daily_step_totals, aes(Total.Steps))
+    d + geom_histogram(binwidth = 500) +
+      xlab("Daily Step Totals") +
+      ylab("Number of Days") +
+      ggtitle("Daily Step Totals, 10/1/2012 - 11/30/2012") +
+      geom_vline(xintercept=ds_median, color = "red", size = 1) + 
+      geom_vline(xintercept=ds_mean, color = "blue", size = 1) +
+      annotate("text",label=paste("Median = ",ds_median), x=17500, y=9, size=4, color = "red") +
+      annotate("text",label=paste("Mean = ",ds_mean), x=17500, y=7, size=4, color = "blue")
+```
+
+The median daily step total is `r ds_median`.
+
+The mean daily step total is `r ds_mean`.
 
 ## What is the average daily activity pattern?
+Use dplyr group_by() to group the data by interval and summarize() to get the average steps per interval.
+```{r}
+    act_by_int <- group_by(act, interval)
+    int_step_avg <- summarize(act_by_int, "Average.Steps" = mean(steps, na.rm = TRUE))
+```
 
+Compute the max value and the interval which contains the max.
+```{r}
+    as_max <- round(max(int_step_avg$Average.Steps, na.rm = TRUE),2)
+    as_max_idx <- which.max(int_step_avg$Average.Steps)
+    as_max_int <- int_step_avg$interval[as_max_idx]
+```
 
+Use ggplot to make a time series plot of average steps vs. interval.
+```{r}
+    i <- ggplot(int_step_avg, aes(y=Average.Steps,x=interval))
+    i + geom_line() +
+      xlab("Interval") +
+      ylab("Interval Step Average") +
+      ggtitle("Interval Step Averages, 10/1/2012 - 11/30/2012") +
+      geom_vline(xintercept=as_max_int, color = "red", size = 1) + 
+      #geom_vline(xintercept=ds_mean, color = "blue", size = 1) +
+      annotate("text",label=paste("Max = ", as_max, "\n@ Interval = ",as_max_int), x=2000, y=150, size=4, color = "red")
+    
+```
+
+Interval `r as_max_int` contains the maximum interval step average of `r as_max`.
 
 ## Imputing missing values
 
