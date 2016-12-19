@@ -100,10 +100,57 @@ Use ggplot to make a time series plot of average steps vs. interval.
     
 ```
 
-Interval `r as_max_int` contains the maximum interval step average of `r as_max`.
+Interval `r as_max_int` contains the maximum step average of `r as_max`.
 
 ## Imputing missing values
+Calculate the number of missing values in the activity dataset.
 
+```{r}
+    sum_NAs = sum(is.na(act$steps))
+    print(paste("Number of missing values in original dataset = ",sum_NAs))
+```
+
+The total number of missing values in the activiy dataset = `r sum_NAs`.
+
+The missing values can be imputed by replacing with the median across all days for that time interval. Here, a function is defined to impute value based on median. This function is applied using dplyr mutate() to the appropriate group after using dplyr group_by() function. The the pipeline operator is utilized.
+
+Credit for this approach [here](http://stackoverflow.com/questions/9322773/how-to-replace-na-with-mean-by-subset-in-r-impute-with-plyr).
+
+```{r}
+    # Replace missing values with the interval median.
+    # Create function to replace missing value with median.
+    impute.median <- function(x) replace(x, is.na(x), median(x, na.rm = TRUE))
+    # apply impute.mean using dplyr group_by() and mutate()
+    act_nm <- act %>% group_by(interval) %>% mutate(steps = impute.median(steps))
+    # verify no missing values
+    sum_NAs = sum(is.na(act_nm$steps))
+    print(paste("Number of missing values in imputed dataset = ",sum_NAs))
+```
+
+The total number of missing values in the activiy dataset = `r sum_NAs`.
+
+Use ggplot2 to plot a histogram of daily step totals once missing values have been imputed. 
+
+```{r}
+    act_by_date_nm <- group_by(act_nm, date)
+    daily_step_totals_nm <- summarize(act_by_date_nm, "Total.Steps" = sum(steps))
+    ds_median_nm <- median(daily_step_totals_nm$Total.Steps)
+    ds_mean_nm <- round(mean(daily_step_totals_nm$Total.Steps),2)
+
+    d <- ggplot(daily_step_totals_nm, aes(Total.Steps))
+    d + geom_histogram(binwidth = 500) +
+      xlab("Daily Step Totals") +
+      ylab("Number of Days") +
+      ggtitle("Daily Step Totals (missing values imputed), 10/1/2012 - 11/30/2012") +
+      geom_vline(xintercept=ds_median_nm, color = "red", size = 1) + 
+      geom_vline(xintercept=ds_mean_nm, color = "blue", size = 1) +
+      annotate("text",label=paste("Median = ",ds_median_nm), x=17500, y=9, size=4, color = "red") +
+      annotate("text",label=paste("Mean = ",ds_mean_nm), x=17500, y=7, size=4, color = "blue")
+```
+
+After imputing missing values, the median daily step total has not changed (as expected, since the imputation method was to replace a missing value with the interval median).
+
+However, the mean daily step total has increased from `r ds_mean` to `r ds_mean_nm`. This is to be expected as the imputation method replaced a missing value with an interval median which will tend to push the daily totals higher. Note, for example that there were 10 days with 0 steps in the original data, and only 2 days with zero steps after imputing missing values. These 8 days seem to have in the neighborhood of 1000 steps per day after imputation (2nd bar from left in the histogram).
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
